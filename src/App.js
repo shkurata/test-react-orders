@@ -27,6 +27,7 @@ class App extends Component {
   removeProductFromOrder(orderID, itemIndex) {
     var newOrders = this.state.orders;
     var index = newOrders.findIndex(order => order.id === orderID);
+    newOrders[index].total -= newOrders[index].items[itemIndex].total;
     newOrders[index].items.splice(itemIndex, 1);
     this.setState({
       orders: newOrders
@@ -68,6 +69,7 @@ class OrderList extends Component {
 class Order extends Component {
   render() {
     const order = this.props.order;
+    var total = 1;
     return (
       <div>
         <h1>Order #{order.id}</h1>
@@ -78,7 +80,11 @@ class Order extends Component {
             <input type="button" value="Remove" onClick={() => this.props.remove(order.id, index)}/>
             </li>)}
         </ul>
-        Total amount: €{order.total}
+        <p>Total amount: €{order.total}</p>
+        Add item: <select ref={(itemPrice) => {total *= itemPrice;} }>
+          {products.map(product => <option>{product.description}, price: {product.price}</option>)}
+        </select> quantity: <input type='number' ref={(qnty) => {total *= qnty;}} min='1' value='1'/>
+        <input type='text' disabled name='total' value={total}/>
       </div>
     );
   }
