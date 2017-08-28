@@ -1,8 +1,7 @@
 import React, { Component } from 'react';
 import { Switch, Route, BrowserRouter, Link } from 'react-router-dom';
-
+import $ from 'jquery';
 import './App.css';
-
 import order1 from './data/order1.json'
 import order2 from './data/order2.json'
 import order3 from './data/order3.json'
@@ -21,8 +20,32 @@ class App extends Component {
 
   getOrders() {
     this.setState({
-      orders: [order1, order2, order3]
+      orders: [order1, order2, order3]// loading data from the files
     })
+  }
+
+  sendOrdersToNet() {
+    $.ajax({
+      url: '',
+      method: 'post',
+      dataType: 'json',
+      data: this.state.orders
+    }).done(function(msg) {
+      console.log(msg);
+    });
+  }
+
+  getDataFromNet() {
+    var url = '';
+    fetch(url)
+      .then(response => response.json())
+      .then(json => {
+        console.log(json);
+        //use the data
+      })
+      .catch(error => {
+        console.log(error);
+      });
   }
 
   addItemToOrder(orderID, itemInx, quantity) {
@@ -32,8 +55,6 @@ class App extends Component {
     var order = newOrders[index];
     var oldSameItemIndex = order.items.findIndex(oldItem => oldItem['product-id'] === item.id);
     if (oldSameItemIndex === -1) {
-      // console.log(item, order);
-      console.log('item doesnt exist');
       var newItem = {
         'product-id': item.id,
         'quantity': quantity,
@@ -43,9 +64,9 @@ class App extends Component {
       order.items.push(newItem);
       order.total = parseFloat(order.total, 10) + parseFloat(newItem.total, 10);
     } else {
-      console.log('item exists');
       order.items[oldSameItemIndex].quantity = +order.items[oldSameItemIndex].quantity + +quantity;
-      order.items[oldSameItemIndex].total = +order.items[oldSameItemIndex].total + +(item.price * quantity).toFixed(2);
+      order.items[oldSameItemIndex].total = (+order.items[oldSameItemIndex].total + +item.price * quantity).toFixed(2);
+      order.total = (+order.total + +item.price * quantity).toFixed(2);
     }
     this.setState({
       orders: newOrders
@@ -62,6 +83,10 @@ class App extends Component {
     });
   }
 
+  sendOrderList(order) {
+    console.log('Order ' + order.id + ' is sent!');
+  }
+
   componentDidMount() {
     this.getOrders();
   }
@@ -74,7 +99,8 @@ class App extends Component {
           <Route path='/order/:order_id' render={({match}) =>
             <Order order={this.state.orders.find(order => order.id === match.params.order_id)}
                   remove={this.removeProductFromOrder}
-                  addItem={this.addItemToOrder}/>
+                  addItem={this.addItemToOrder}
+                  sendOrder={this.sendOrderList}/>
           }/>
         </Switch>
       </BrowserRouter>
@@ -85,15 +111,20 @@ class App extends Component {
 
 class OrderList extends Component {
   render() {
-    return (<ul>
-    {this.props.orders.map(order =>
-      <li key={order.id}>
-        <Link to={`/order/${order.id}`}>
-          Order number {order.num} - total: {order.total}
-        </Link>
-      </li>
-    )}
-    </ul>)
+    return (
+      <div>
+        <h1>Orders</h1>
+        <ul>
+          {this.props.orders.map(order =>
+            <li key={order.id}>
+              <Link to={`/order/${order.id}`}>
+                Order number {order.id} - total: {order.total}
+              </Link>
+            </li>
+          )}
+        </ul>
+      </div>
+    )
   }
 }
 class Order extends Component {
@@ -107,6 +138,7 @@ class Order extends Component {
   }
   render() {
     const order = this.props.order;
+    if (!order) return null;
     return (
       <div>
         <h1>Order #{order.id}</h1>
@@ -133,6 +165,7 @@ class Order extends Component {
           </tbody>
         </table>
         <p>Total amount: €{order.total}</p>
+        <hr/>
         Add item:
         <select ref={(itemInx) => {this.itemInx = itemInx;}}
                 onChange={this.showNewTotal}
@@ -142,12 +175,12 @@ class Order extends Component {
             <option key={product.id} value={index}>
               {product.description}, price: {product.price}
             </option>)}
-        </select>
-         x
-        <input type='number' style={inputStyle} ref={(qnty) => {this.qnty = qnty;}} onChange={this.showNewTotal} min='1' defaultValue="1"/>
-        pcs. = €
-        <input type='number' style={inputStyle} disabled ref={(total) => {this.total = total;}} defaultValue="1"/> total <br/><br/>
-        <input type='button'  onClick={() => this.props.addItem(order.id, this.itemInx.value, this.qnty.value)} value='Add to order'/>
+        </select><br/>
+        Quantity: <input type='number' style={inputStyle} ref={(qnty) => {this.qnty = qnty;}} onChange={this.showNewTotal} min='1' defaultValue="1"/><br/>
+        Price: €<input type='number' style={inputStyle} disabled ref={(total) => {this.total = total;}} defaultValue="0"/> total <br/><br/>
+        <input type='button'  onClick={() => this.props.addItem(order.id, this.itemInx.value, this.qnty.value)} value='Add product to this order'/>
+        <hr/>
+        <button onClick={() => this.props.sendOrder(order)}>Place order</button>
       </div>
     );
   }
